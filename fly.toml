@@ -1,46 +1,30 @@
-# Fly.toml configuration for Laravel appointment booking app
+# Fly.toml - Minimal config, forces Dockerfile only
 app = "appointment_booking"
 primary_region = "iad"
-build = { dockerfile = "Dockerfile", builder = "dockerfile" }
+
+[build]
+  builder = "dockerfile"
 
 [env]
   APP_ENV = "production"
   LOG_CHANNEL = "stderr"
-  LOG_STDERR = "true"
-
-[http_service]
-  internal_port = 8080
-  force_https = true
-  auto_stop_machines = true
-  auto_start_machines = true
-  min_machines_running = 1
-  processes = ["app"]
 
 [[services]]
-  http_checks = [{grace_period = "5s", interval = "30s", timeout = "5s", path = "/"}]
   internal_port = 8080
-  processes = ["app"]
   protocol = "tcp"
-  script_checks = []
-
-  [services.concurrency]
-    hard_limit = 25
-    soft_limit = 20
-    type = "connections"
 
   [[services.ports]]
-    handlers = ["http"]
     port = 80
+    handlers = ["http"]
 
   [[services.ports]]
-    handlers = ["tls", "http"]
     port = 443
+    handlers = ["tls", "http"]
 
-[checks]
-  [checks.alive]
-    grace_period = "10s"
-    interval = "30s"
-    method = "get"
+  [services.http_checks]
+    enabled = true
+    interval = "10s"
     timeout = "5s"
-    type = "http"
-    uri = "/"
+    grace_period = "5s"
+    method = "get"
+    path = "/"

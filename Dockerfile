@@ -1,12 +1,15 @@
 # Stage 1: Builder
 FROM php:8.2-cli-bookworm as builder
 
-# Install system dependencies (Debian)
+# Remove any PPA references that might be in the base image
+RUN rm -f /etc/apt/sources.list.d/* || true
+
+# Install system dependencies (Debian only, no PPA)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     unzip \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -22,12 +25,15 @@ RUN composer install --no-dev --optimize-autoloader
 # Stage 2: Runtime
 FROM php:8.2-fpm-bookworm
 
-# Install system dependencies
+# Remove any PPA references that might be in the base image
+RUN rm -f /etc/apt/sources.list.d/* || true
+
+# Install system dependencies (Debian only, no PPA)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx \
     curl \
     ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions from official Debian repos (no PPA)
 RUN docker-php-ext-install \
