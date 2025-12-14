@@ -1,27 +1,12 @@
-# Stage 1: Build stage
-FROM php:8.2-fpm-alpine as builder
+# Stage 1: Builder
+FROM php:8.2-cli-bookworm as builder
 
-# Install system dependencies
-RUN apk add --no-cache \
-    build-base \
-    curl \
+# Install system dependencies (Debian)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
-    libpng-dev \
-    libjpeg-turbo-dev \
-    freetype-dev \
-    zip \
-    libzip-dev \
-    oniguruma-dev
-
-# Install PHP extensions
-RUN docker-php-ext-install \
-    pdo_mysql \
     curl \
-    mbstring \
-    xml \
-    gd \
-    zip \
-    opcache
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -34,46 +19,48 @@ COPY . .
 # Install dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Stage 2: Runtime stage
-FROM php:8.2-fpm-alpine
+# Stage 2: Runtime
+FROM php:8.2-fpm-bookworm
 
-# Install runtime dependencies
-RUN apk add --no-cache \
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx \
     curl \
-    libpng \
-    libjpeg-turbo \
-    freetype \
-    libzip \
-    oniguruma
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install PHP extensions
+# Install PHP extensions from official Debian repos (no PPA)
 RUN docker-php-ext-install \
     pdo_mysql \
-    curl \
     mbstring \
     xml \
-    gd \
-    zip \
     opcache
 
-# Copy PHP configuration
+# Verify PHP extensions
+RUN php -m | grep -E "pdo_mysql|mbstring|xml|opcache"
+
+# Copy PHP config
 RUN echo "opcache.enable=1" > /usr/local/etc/php/conf.d/opcache.ini && \
     echo "opcache.memory_consumption=256" >> /usr/local/etc/php/conf.d/opcache.ini
 
-# Copy application from builder stage
+# Copy application from builder
 COPY --from=builder /app /app
 
 WORKDIR /app
 
-# Copy nginx config
+# Copy Nginx config
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Create storage directories
-RUN mkdir -p storage/logs && chmod -R 775 storage bootstrap/cache
+# Create necessary directories
+RUN mkdir -p storage/logs storage/app bootstrap/cache && \
+    chmod -R 775 storage bootstrap/cache
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8080/ || exit 1
 
 # Expose port
 EXPOSE 8080
 
-# Start application
-CMD ["/bin/sh", "-c", "php-fpm -D && nginx"]
+# Start FPM + Nginx
+CMD ["/bin/sh", "-c", "php-fpm && nginx -g 'daemon off;'"]
