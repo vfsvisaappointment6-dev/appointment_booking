@@ -1,13 +1,12 @@
 # Fly.toml configuration for Laravel appointment booking app
 app = "appointment_booking"
 primary_region = "iad"
-
-[build]
-  dockerfile = "Dockerfile"
+build = { dockerfile = "Dockerfile", builder = "dockerfile" }
 
 [env]
   APP_ENV = "production"
   LOG_CHANNEL = "stderr"
+  LOG_STDERR = "true"
 
 [http_service]
   internal_port = 8080
